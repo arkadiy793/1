@@ -1,0 +1,20 @@
+#!groovy
+// Check slave properties
+properties([disableConcurrentBuilds()])	//запретить параллельный запуск этого же пайплайна
+
+pipeline {
+    agent { 
+        label 'master'
+        }
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '10'))	//хранить 10 артефактов
+        timestamps()	//добалять в лог таймстампы
+    }
+    stages {
+        stage("First step") {
+            steps {
+                sh 'ssh root@slave \'hostname\''
+            }
+        }
+    }
+}

@@ -72,6 +72,9 @@ Vagrant.configure("2") do |config|
 		  # Enable provisioning with a shell script. Additional provisioners such as
 		  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
 		  # documentation for more information about their specific syntax and use.
+		  
+		  # Setup hostnames for VB internal net
+		  # https://stackoverflow.com/questions/20681190/can-multiple-vagrant-vms-communicate-by-vm-hostname
 		jenkins.vm.provision "shell", inline: <<-SHELL
 			wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -
 			sudo sh -c 'echo deb https://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
@@ -80,6 +83,8 @@ Vagrant.configure("2") do |config|
 			sudo apt-get update
 			sudo apt-get -y install openjdk-8-jdk
 			sudo apt-get -y install jenkins
+			sudo apt-get -y install git
+			sudo echo '192.168.33.20 slave' >> /etc/hosts
 			sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 		SHELL
 	
