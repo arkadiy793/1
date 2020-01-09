@@ -89,7 +89,8 @@ ssh root@192.168.33.20
 Подготовительные шаги: установить git на машине jenkins: `sudo apt-get -y install git`, задать "DNS" для 192.168.33.20: `echo '192.168.33.20 slave' >> /etc/hosts` (возможно это можно сделать более "продакшн" способом).
 После добавления DNS имени сервера нужно зайти под jenkins: `sudo su jenkins` и выполнить `ssh root@slave`, снова утвердительно ответить на вопрос про fingerprint, выйти из под jenkins.
 
-Создать папку jenkinsfiles и в ней файл first_steps.jenkins - это описание пайплайна на groovy. Файлы этого проекта будут размещены на GitHub в репозитории https://github.com/Nikolayill/jenkins_tutorial\
+Создать папку jenkinsfiles и в ней файл first_steps.jenkins - это описание пайплайна на groovy. Файлы этого проекта будут размещены на GitHub в репозитории https://github.com/Nikolayill/jenkins_tutorial
+
 Теперь создадим пайплайн в Jenkins. На основном экране с джобами нужно выбрать "Создать Item", вести "first_steps", выбрать Pipline, нажать Ok. Перейти на вкладку Pipeline, Definition установить в "Pipeline script from SCM",
 SCM - "Git", Repository URL "https://github.com/Nikolayill/jenkins_tutorial", Script Path "jenkinsfiles/first_steps.jenkins", "Сохранить".
 Теперь можно "Собрать сейчас", джоб должен выполниться без ошибок.
