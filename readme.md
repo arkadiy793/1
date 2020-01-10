@@ -91,7 +91,7 @@ ssh root@192.168.33.20
 
 Создать папку jenkinsfiles и в ней файл first_steps.jenkins - это описание пайплайна на groovy. Файлы этого проекта будут размещены на GitHub в репозитории https://github.com/Nikolayill/jenkins_tutorial\
 Теперь создадим пайплайн в Jenkins. На основном экране с джобами нужно выбрать "Создать Item", вести "first_steps", выбрать Pipline, нажать Ok. Перейти на вкладку Pipeline, Definition установить в "Pipeline script from SCM",
-SCM - "Git", Repository URL "https://github.com/Nikolayill/jenkins_tutorial", Script Path "jenkinsfiles/first_steps.jenkins", "Сохранить".
+SCM - "Git", Repository URL "https://github.com/Nikolayill/jenkins_tutorial.git", Script Path "jenkinsfiles/first_steps.jenkins", "Сохранить".
 Теперь можно "Собрать сейчас", джоб должен выполниться без ошибок.
 В меню джоба "Status" будут отображаться два выполненных стейджа, имена и команды для которых определены в first_steps.jenkins (см. комментарии в файле). Для каждого стейджа можно посмотреть отдельный лог, если кликнуть на соответсвующем прямоугольнике.
 
@@ -145,4 +145,9 @@ This message shows that your installation appears to be working correctly.
 ```
 sudo service jenkins restart
 ```
+#### Pipeline сборки docker образа
+Протестируем работу докера на примере простейшей сборки образа.
+
+Создадим новый пайплайн docker_build. Далее повторим шаги аналогично first_steps. 
+Выберем Script Path "jenkinsfiles/docker_build.jenkins". Теперь можно сохраниться и выполнить сборку.
 
