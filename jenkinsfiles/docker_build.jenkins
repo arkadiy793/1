@@ -19,5 +19,11 @@ pipeline {
                 }
             }
         }
+        stage("find docker image") {
+            steps {
+                echo " ============== find docker image =================="
+                sh 'docker images | grep \'semaev/toolbox\''               
+            }
+        }
     }
 }
