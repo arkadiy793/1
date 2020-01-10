@@ -1,3 +1,9 @@
+### Введение в Jenkins
+Здесь я выполняю упражнения по теме курса
+https://www.youtube.com/playlist?list=PLmxB7JSpraiew9igtD89o33AaniUrmUzm
+https://github.com/ksemaev/project_template
+
+
 #### Запуск виртуалок
 Для запуска выполнить 
 ```
