@@ -94,3 +94,55 @@ ssh root@192.168.33.20
 SCM - "Git", Repository URL "https://github.com/Nikolayill/jenkins_tutorial", Script Path "jenkinsfiles/first_steps.jenkins", "Сохранить".
 Теперь можно "Собрать сейчас", джоб должен выполниться без ошибок.
 В меню джоба "Status" будут отображаться два выполненных стейджа, имена и команды для которых определены в first_steps.jenkins (см. комментарии в файле). Для каждого стейджа можно посмотреть отдельный лог, если кликнуть на соответсвующем прямоугольнике.
+
+#### Установка Docker
+У меня используется старый дистрибутив Ubuntu поэтому установка докера будет несколько отличаться от туториала (см. https://docs.docker.com/install/linux/docker-ce/ubuntu/)
+##### 1. Добавление репозиториев
+Добавление ключа (шаг 1-3 в ориг. документе):
+```
+sudo apt-get update
+
+sudo apt-get install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg-agent \
+    software-properties-common
+	
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+```
+Добавление репозитория (шаг.4):
+```
+sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   trusty \
+   stable"
+```   
+- здесь жестко прописан дистрибутив "trusty"
+##### 2. Установка пакетов
+```
+sudo apt-get update
+
+sudo apt-get install docker-ce
+```
+в отличие от более новых версий, в этой всё ставится одним пакетом - docker-ce-cli containerd.io ставить не требуется.
+##### 3. Предоставление прав для Jenkins
+Что бы дженкинс мог работать стартовать докер, нужно включить его в группу docker: `sudo usermod -a -G docker jenkins`.
+Можно переключиться на учетку jenkins и проверить работоспособность докера:
+```
+sudo su jenkins
+```
+```
+docker run hello-world
+```
+Должно отобразиться примерно такое сообщение:
+```
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+```
+Выйти из учетки jenkins. И перезапустить jenkins что бы он "подхватил" изменения в системе после установки докера.
+```
+sudo service jenkins restart
+```
+
