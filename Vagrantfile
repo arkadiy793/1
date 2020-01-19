@@ -85,6 +85,7 @@ Vagrant.configure("2") do |config|
 			sudo apt-get -y install jenkins
 			sudo apt-get -y install git
 			sudo echo '192.168.33.20 slave' >> /etc/hosts
+			sudo echo '192.168.33.30 registry' >> /etc/hosts
 			sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 		SHELL
 	
@@ -120,9 +121,61 @@ Vagrant.configure("2") do |config|
 		# documentation for more information about their specific syntax and use.
 		#slave.vm.provision "shell", inline: <<-SHELL
 		#	sudo apt-get update
-		#	sudo add-apt-repository ppa:openjdk-r/ppa
-		#	sudo apt-get -y update
-		#	sudo apt-get -y install openjdk-8-jdk
+		#	sudo apt-get -y install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+		#	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+		#	sudo add-apt-repository  "deb [arch=amd64] https://download.docker.com/linux/ubuntu trusty stable"
+		#	sudo apt-get update
+		#	sudo apt-get -y install docker-ce
+		#	sudo usermod -a -G docker vagrant
+		#	sudo docker pull registry
+		#	sudo docker run -d -p 5000:5000 --restart always --name registry registry:2
 		#SHELL
+	end
+
+	config.vm.define "registry" do |registry|
+		# Every Vagrant development environment requires a box. You can search for
+		# boxes at https://atlas.hashicorp.com/search.
+		registry.vm.box = "ubuntu/trusty64"
+
+		# registry.vm.network "forwarded_port", guest: 8080, host: 18080
+		registry.vm.network "private_network", ip: "192.168.33.30"
+
+		# Create a public network, which generally matched to bridged network.
+		# Bridged networks make the machine appear as another physical device on
+		# your network.
+		# config.vm.network "public_network"
+
+		registry.vm.synced_folder "./sync", "/vagrant"
+
+
+		# Provider-specific configuration so you can fine-tune various
+		# backing providers for Vagrant. These expose provider-specific options.
+		# Example for VirtualBox:
+		#
+		registry.vm.provider "virtualbox" do |vb|
+			vb.memory = "2048"
+			vb.cpus = "1"
+		end
+
+		# Enable provisioning with a shell script. Additional provisioners such as
+		# Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+		# documentation for more information about their specific syntax and use.
+		registry.vm.provision "shell", inline: <<-SHELL
+			sudo apt-get update
+			sudo apt-get -y install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+			curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+			sudo add-apt-repository  "deb [arch=amd64] https://download.docker.com/linux/ubuntu trusty stable"
+			sudo apt-get update
+			sudo apt-get -y -V install docker-ce=17.03.0~ce-0~ubuntu-trusty
+			sudo usermod -a -G docker vagrant
+			sudo docker pull registry
+			sudo docker run -d -p 5000:5000 --restart always --name registry registry:2
+			sudo mkdir -p /etc/systemd/system/docker.service.d
+			sudo su root
+			echo [Service] > /etc/systemd/system/docker.service.d/local_insecure.conf
+			echo Environment="DOCKER_OPTS=--insecure-registry 127.0.0.1:5000" >> /etc/systemd/system/docker.service.d/local_insecure.conf
+			exit
+			sudo service docker restart
+		SHELL
 	end
 end

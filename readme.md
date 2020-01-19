@@ -31,7 +31,7 @@ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 ввести новый пароль и подтверждение и нажать сохранить - это потребует перелогиниться.
 
 
-#### Настройка ssh на слейв-машине.
+#### Настройка ssh на слейв-машине
 Дженскинс будет подключаться к целевой системе по ssh и выполнять в ней определенные действия.
 Для этого ему нужно предоставить ssh-доступ по ключу.
 Сначала нужно сгенерировать ключ, войти на машину с дженкинсом `vagrant ssh jenkins` и выполнить последовательность команд:
@@ -72,7 +72,7 @@ ssh root@192.168.33.20
 После этого должно произойти подключение с правами root. Это показатель успешной настройки.
 
 
-#### Тестовый джоб.
+#### Тестовый джоб
 Сейчас всё готово, что бы можно было создать "hello world" джоб через интерфейс дженкинса.\
 Нужно зайти под админом, на основной вкладке будет отображаться предложение создать новый джоб.
 После клика по кнопке отобразится экран на котором нужно ввести имя Item'a (джоба) например test-job,
@@ -130,7 +130,7 @@ sudo add-apt-repository \
 ```
 sudo apt-get update
 
-sudo apt-get install docker-ce
+sudo apt-get install docker-ce=17.03.0~ce-0~ubuntu-trusty
 ```
 в отличие от более новых версий, в этой всё ставится одним пакетом - docker-ce-cli containerd.io ставить не требуется.
 ##### 3. Предоставление прав для Jenkins
@@ -158,7 +158,7 @@ sudo service jenkins restart
 Создадим новый пайплайн docker_build. Далее повторим шаги аналогично first_steps. 
 Выберем Script Path "jenkinsfiles/docker_build.jenkins". Теперь можно сохраниться и выполнить сборку.
 
-#### Запуск сборки по коммиту.
+#### Запуск сборки по коммиту
 Jenkins можно настроить на запуск пайплайна по факту изменений в Git (либо другой SCM). Настройка подразумевает два возможных режима работы - push и pull.\
 В режиме push оповещение об изменениях берет на себя SCM-система, а Jenkins предоставляет точку входа (hook - некий уникальный URL).\
 В режиме pull (poll?) Jenkins по расписанию опрашивает SCM и запускает пайплайн при изменениях.\
@@ -167,3 +167,171 @@ Jenkins можно настроить на запуск пайплайна по 
 
 Pull механизм настраивается в jenkins-файле добавлением секции `triggers{ pollSCM('* * * * *') }`, где через pollSCM задается cron-расписание опроса см. [triggers](https://jenkins.io/doc/book/pipeline/syntax/#triggers).
 В данном случае опрос производится с максимальной частотой (раз в минуту).
+
+#### Docker registry
+Для дальнейшей работы нам потребуется Docker-registry. Можно воспользоваться DockerHub, либо поднять registry локально (см.[Быстрый запуск и использование своего открытого docker-registry](https://habr.com/ru/post/279659/))
+
+##### Настройка локального регистра (репозитория)
+Сначала нужно установить докер, действуя аналогично, как при установки докера на jenkins.\
+Что бы запустить регистр локально есть готовый образ https://hub.docker.com/_/registry/?tab=description:
+```
+sudo docker run -d -p 5000:5000 --restart always --name registry registry:2
+```
+Что бы докер на этом сервере мог пушить в регистр, нужно добавить опции для докер-демона. 
+В Ubuntu используется systemd поэтому опции задаются в `*.conf` файлах в `/etc/systemd/system/docker.service.d` см. https://docs.docker.com/config/daemon/systemd/
+```
+sudo mkdir -p /etc/systemd/system/docker.service.d
+sudo su root
+echo [Service] > /etc/systemd/system/docker.service.d/local_insecure.conf
+echo Environment="DOCKER_OPTS=--insecure-registry localhost:5000" >> /etc/systemd/system/docker.service.d/local_insecure.conf
+exit
+service docker restart
+```
+здесь `DOCKER_OPTS=--insecure-registry localhost:5000` указывает, что для доступа к этому регистру не нужен пароль.
+теперь можно проверить регистр:
+```
+sudo docker pull ubuntu
+sudo docker tag ubuntu localhost:5000/ubuntu
+sudo docker push localhost:5000/ubuntu
+```
+и посмотреть на список образов `docker images`:
+```
+REPOSITORY              TAG                 IMAGE ID            CREATED             SIZE
+localhost:5000/ubuntu   latest              549b9b86cb8d        3 weeks ago         64.2 MB
+```
+сразу видно ссылку на репозиторий.
+
+##### Доступ к репозиторию по логину/паролю
+Для доступа к регистру извне, по логину и паролю, потребуется настройка TLS, без которой 
+(см. [Restricting access](https://docs.docker.com/registry/deploying/#restricting-access) 
+и [Use self-signed certificates](https://docs.docker.com/registry/insecure/#use-self-signed-certificates))
+
+###### Генерация ключей и сертификата
+Создадим каталог и перейдём в него
+```
+mkdir registry && cd "$_"
+```
+здесь создадим каталог для сертификатов и другой для конфигов _htpasswd_ `mkdir certs auth`.\
+Сгенерируем ключ
+```
+cd certs/
+openssl genrsa 1024 > domain.key
+chmod 400 domain.key
+```
+и используем его для генерации самоподписанного сертификата
+```
+openssl req -new -x509 -nodes -sha1 -days 365 -key domain.key -out domain.crt
+```
+ответим на вопросы, затем проверим (`ls`) созданы ли файлы domain.crt и domain.key.
+
+###### Настройка TLS
+Перейдём в каталог auth и сгенерируем файл htpasswd используя докер контейнер registry
+```
+cd ../auth/
+docker run --rm --entrypoint htpasswd registry:2 -Bbn username password > htpasswd
+```
+последней командой, в контейнере registry запускается утилита htpasswd, ключ `-Bbn`
+указывает, что запуск идет в пакетном режиме (_b_) т.е. логин/пароль (`username`/`password`)
+передаются аргументами, для шифромания используется bcrypt (_B_) и результат выводится в stdout (_n_).
+Вывод перенаправляется в файл htpasswd в текущем каталоге. См. [htpasswd - Manage user files for basic authentication](https://httpd.apache.org/docs/current/programs/htpasswd.html)\
+Убедимся, что всё получилось `cat htpasswd` должен отобразить `username:зашифрованный_пароль`
+Конфигурация завершена.
+
+###### Тестовый запуск
+Перед запуском нужно удалить/переименовать контейнер registry который был запущен при старте (что было настроено в предидущих шагах).
+```
+docker stop registry
+docker rm registry
+```
+Теперь можно вернуться в каталог `registry/` и из него запустить контейнер
+```
+docker run -d \
+  --restart=always \
+  --name registry \
+  -v `pwd`/auth:/auth \
+  -v `pwd`/certs:/certs \
+  -v `pwd`/certs:/certs \
+  -e REGISTRY_AUTH=htpasswd \
+  -e REGISTRY_AUTH_HTPASSWD_REALM="Registry Realm" \
+  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd \
+  -e REGISTRY_HTTP_ADDR=0.0.0.0:443 \
+  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+  -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+  -p 443:443 \
+  registry:2
+```
+И наконец можно попытаться запушить в него, что нибудь:
+```
+docker pull busybox
+docker tag busybox localhost:443/busybox
+docker push localhost:443/busybox
+```
+появится сообщение вида:
+```
+The push refers to repository [localhost:443/busybox]
+0314be9edf00: Preparing
+no basic auth credentials
+```
+- нужно выполнить логин
+```
+docker login -u username https://localhost:443
+Password:
+Login Succeeded
+```
+и повторить пуш
+```
+docker push localhost:443/busybox
+```
+появится сообщение `0314be9edf00: Pushed` что говорит об успешном пуше.
+
+###### Доступ извне
+До сего момента доступ к регистру выполнялся только с той же машины, на которой запущен докер.
+Первое, что нужно для доступа извне - открытый 443 порт на хост-машине (через группу или фаерволл).
+Второе - нужно сконфигурировать докер-демон на клиентской машине, что бы он использовал созданный сертификат.
+Для этого скопируем сертификат в расшаренный каталог Vagrant
+```
+cp certs/domain.crt /vagrant/
+```
+###### Настройка клиента (машина с jenkins)
+Завершим ssh сессию с машиной registry и зайдем на jenkins.
+Первое, что нужно - добавить registry в hosts
+```
+sudo su root
+echo '192.168.33.30 registry' >> /etc/hosts
+ping registry
+```
+пинг должен пройти.
+
+Теперь нужно и установить сертификат. Для этого нужно создать каталог 
+```
+mkdir -p /etc/docker/certs.d/registry:443/
+```
+- здесь "registry" - домен регистра.
+Далее в этот каталог нужно поместить сертификат, файл нужно переименовать в ca.crt
+```
+cp /vagrant/domain.crt  /etc/docker/certs.d/registry\:443/ca.crt
+exit
+```
+Выйти из под root и перейти в учетку jenkins `sudo su jenkins`
+Что бы удостовериться, что настройка выполнена, нужно попытаться залогиниться в регистр
+```
+docker login -u username https://registry:443
+Password:
+```
+- ввести пароль "password", который настроили в htpasswd. Должно быть выдано `Login Succeeded`,
+говорящее об успешном подключении к регистру. Можно повторить тест с контейнером busybox
+```
+docker pull busybox
+docker tag busybox registry:443/busybox
+docker push registry:443/busybox
+```
+появится сообщение о том, что пуш ссылается на репозиторий 
+```
+The push refers to a repository [registry:443/busybox]
+195be5f8be1d: Pushed
+```
+###### Links
+[Deploy a Docker Registry using self-signed certificates and htpasswd](https://medium.com/@lvthillo/deploy-a-docker-registry-using-tls-and-htpasswd-56dd57a1215a)
+###### Настройка докер-демона для registry
+Что бы при рестарте машины регистр становился доступен извне по логину/паролю, нужно передать в контейнер 
+переменные среды и ключи так, как он запускался в разделе "Тестовый запуск".
