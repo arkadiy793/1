@@ -14,18 +14,26 @@ pipeline {
         timestamps()
     }
     stages {
+        stage("docker login") {
+			steps {
+			    echo " ============== docker login =================="
+				withCredentials([usernamePassword(credentialsId: 'registry_user', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]){
+					sh 'docker login -u $USERNAME -p $PASSWORD https://registry:443'
+				}
+			}
+		}
         stage("create docker image") {
             steps {
                 echo " ============== start building image =================="
                 dir ('docker/toolbox') {	//в репозитории по этому пути расположен докерфайл
-                    sh 'docker build -t semaev/toolbox:latest . '
+                    sh 'docker build -t registry:443/semaev/toolbox:latest . '
                 }
             }
         }
-        stage("find docker image") {
+        stage("docker push") {
             steps {
-                echo " ============== find docker image =================="
-                sh 'docker images | grep \'semaev/toolbox\''               
+                echo " ============== push docker image =================="
+                sh 'docker push registry:443/semaev/toolbox:latest'               
             }
         }
     }
